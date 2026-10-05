@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-# Librerías para generación del reporte PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -41,7 +40,7 @@ temp_min_permitida = st.sidebar.number_input("Temp. Mínima Permitida", value=2.
 temp_max_permitida = st.sidebar.number_input("Temp. Máxima Permitida", value=8.0, step=0.5)
 
 # -----------------------------------------------------------------------------
-# FUNCIÓN PARA GENERAR EL PDF CON EL GRÁFICO (SIN FIRMAS)
+# GENERACIÓN DEL REPORTE PDF (SIN FIRMAS, CON GRÁFICO)
 # -----------------------------------------------------------------------------
 def generar_pdf_reporte(df, col_fecha, col_temp, fig, sede, periodo, t_min, t_max):
     buffer = io.BytesIO()
@@ -49,7 +48,6 @@ def generar_pdf_reporte(df, col_fecha, col_temp, fig, sede, periodo, t_min, t_ma
     story = []
     styles = getSampleStyleSheet()
 
-    # Estilos personalizados
     titulo_style = ParagraphStyle(
         'TituloPDF',
         parent=styles['Heading1'],
@@ -67,25 +65,23 @@ def generar_pdf_reporte(df, col_fecha, col_temp, fig, sede, periodo, t_min, t_ma
         spaceAfter=15
     )
 
-    # 1. Encabezado
     story.append(Paragraph("CENDIATRA - Reporte Monitoreo Cadena de Frío", titulo_style))
     story.append(Paragraph(f"<b>Sede/Equipo:</b> {sede} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Período:</b> {periodo}", subtitulo_style))
     story.append(Spacer(1, 5))
 
-    # 2. Métricas resumidas
     t_max_val = df[col_temp].max()
     t_min_val = df[col_temp].min()
     t_prom_val = df[col_temp].mean()
-    fuera_rango = df[(df[col_temp] < t_min) | (df[col_temp] > t_max)].shape[0]
-    estado_txt = "✅ Conforme (Sin alertas)" if fuera_rango == 0 else f"⚠️ Alerta ({fuera_rango} fueras de rango)"
+    t_actual_val = df[col_temp].iloc[-1]
 
     resumen_data = [
-        ["Métrica", "Valor", "Rango Permitido", "Estado General"],
-        ["Temp. Máxima", f"{t_max_val:.2f} °C", f"{t_min} °C - {t_max} °C", estado_txt],
-        ["Temp. Mínima", f"{t_min_val:.2f} °C", f"{t_min} °C - {t_max} °C", "-"],
-        ["Temp. Promedio", f"{t_prom_val:.2f} °C", f"{t_min} °C - {t_max} °C", "-"]
+        ["Métrica", "Valor Actual / Estadísticas", "Rango Permitido"],
+        ["Temp. Actual", f"{t_actual_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
+        ["Temp. Máxima", f"{t_max_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
+        ["Temp. Mínima", f"{t_min_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
+        ["Temp. Promedio", f"{t_prom_val:.2f} °C", f"{t_min} °C - {t_max} °C"]
     ]
-    tabla_resumen = Table(resumen_data, colWidths=[120, 100, 140, 160])
+    tabla_resumen = Table(resumen_data, colWidths=[160, 180, 180])
     tabla_resumen.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#003366')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -98,7 +94,6 @@ def generar_pdf_reporte(df, col_fecha, col_temp, fig, sede, periodo, t_min, t_ma
     story.append(tabla_resumen)
     story.append(Spacer(1, 15))
 
-    # 3. Exportación del gráfico Plotly a imagen estática PNG e inserción en el PDF
     try:
         img_bytes = fig.to_image(format="png", width=750, height=350, scale=2)
         img_buffer = io.BytesIO(img_bytes)
@@ -112,7 +107,7 @@ def generar_pdf_reporte(df, col_fecha, col_temp, fig, sede, periodo, t_min, t_ma
     return buffer
 
 # -----------------------------------------------------------------------------
-# CARGA Y PROCESAMIENTO DE DATOS
+# CARGA Y PROCESAMIENTO DE DATOS EN TIEMPO REAL
 # -----------------------------------------------------------------------------
 @st.cache_data(ttl=30)
 def cargar_datos_sheets(url):
@@ -144,7 +139,7 @@ def cargar_datos_sheets(url):
     return df, col_fecha, col_temp
 
 # -----------------------------------------------------------------------------
-# DASHBOARD
+# DASHBOARD PRINCIPAL
 # -----------------------------------------------------------------------------
 if url_input:
     try:
@@ -177,24 +172,20 @@ if url_input:
             if df.empty:
                 st.warning("No hay registros disponibles para el período seleccionado.")
             else:
-                # Métricas
+                temp_actual = df[col_temp].iloc[-1]
+                fecha_ultima = df[col_fecha].iloc[-1].strftime("%d/%m/%Y %H:%M")
                 temp_max = df[col_temp].max()
                 temp_min = df[col_temp].min()
                 temp_prom = df[col_temp].mean()
-                fuera_rango = df[(df[col_temp] < temp_min_permitida) | (df[col_temp] > temp_max_permitida)].shape[0]
 
-                # Tarjetas
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("🔥 Temp. Máxima", f"{temp_max:.2f} °C")
-                c2.metric("❄️ Temp. Mínima", f"{temp_min:.2f} °C")
-                c3.metric("📈 Temp. Promedio", f"{temp_prom:.2f} °C")
-
-                estado = "✅ Normal" if fuera_rango == 0 else f"⚠️ {fuera_rango} Alertas"
-                c4.metric("Estado Cadena de Frío", estado)
+                c1.metric("🌡️ Temp. Actual", f"{temp_actual:.2f} °C", help=f"Última lectura: {fecha_ultima}")
+                c2.metric("🔥 Temp. Máxima", f"{temp_max:.2f} °C")
+                c3.metric("❄️ Temp. Mínima", f"{temp_min:.2f} °C")
+                c4.metric("📈 Temp. Promedio", f"{temp_prom:.2f} °C")
 
                 st.markdown("---")
 
-                # Gráfico
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
                     x=df[col_fecha],
@@ -217,7 +208,6 @@ if url_input:
 
                 st.plotly_chart(fig, use_container_width=True)
 
-                # Exportación en PDF con Gráfico
                 st.markdown("### 🖨️ Exportar e Imprimir Informe PDF")
                 
                 pdf_buffer = generar_pdf_reporte(
