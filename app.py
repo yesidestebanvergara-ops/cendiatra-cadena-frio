@@ -29,7 +29,7 @@ st.set_page_config(
 
 st.title("❄️ Cendiatra - Monitoreo de Cadena de Frío")
 st.markdown(
-    "Visualización en tiempo real, alertas de desvío e historial normativo por"
+    "Visualización en tiempo real, alertas de desvío e historial por"
     " sedes/equipos."
 )
 
@@ -67,7 +67,7 @@ sedes_links = {
         "https://docs.google.com/spreadsheets/d/1XY-XqIZQZPgeLhPWtmJ6XsQJKtHp6D0S9dqOaIsiSH0/edit?usp=sharing"
     ),
     "Sede Norte": "",
-    "Sede Sur": "",
+    "Sede Occidente": "",
 }
 
 sede_seleccionada = st.sidebar.selectbox(
@@ -85,7 +85,7 @@ temp_max_permitida = st.sidebar.number_input(
     "Temp. Máxima Permitida", value=8.0, step=0.5
 )
 
-# Mejora 3: Botón de recarga manual
+# Botón de recarga manual
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Actualizar datos ahora", use_container_width=True):
     st.cache_data.clear()
@@ -160,7 +160,7 @@ def generar_pdf_reporte(
     t_actual_val = df[col_temp].iloc[-1]
 
     resumen_data = [
-        ["Métrica Normativa", "Valor Registrado", "Rango Permitido"],
+        ["Métrica", "Valor Registrado", "Rango Permitido"],
         ["Temp. Actual", f"{t_actual_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
         ["Temp. Máxima", f"{t_max_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
         ["Temp. Mínima", f"{t_min_val:.2f} °C", f"{t_min} °C - {t_max} °C"],
@@ -331,7 +331,7 @@ if url_input:
                 temp_prom = df[col_temp].mean()
                 mkt_val = calcular_mkt(df[col_temp].tolist())
 
-                # Mejora 1: Indicador de Alerta de Desvío Activo
+                # Indicador de Alerta de Desvío Activo
                 if (
                     temp_actual > temp_max_permitida
                     or temp_actual < temp_min_permitida
@@ -339,7 +339,7 @@ if url_input:
                     st.error(
                         f"⚠️ **DESVÍO TÉRMICO DETECTADO**: La temperatura actual"
                         f" ({temp_actual:.2f} °C) se encuentra fuera del rango"
-                        f" normativo ({temp_min_permitida}°C -"
+                        f" permitido ({temp_min_permitida}°C -"
                         f" {temp_max_permitida}°C)."
                     )
 
@@ -394,7 +394,7 @@ if url_input:
 
                 st.plotly_chart(fig, use_container_width=True)
 
-                # Mejora 2: Registro de Acciones Correctivas
+                # Registro de Acciones Correctivas
                 st.markdown(
                     "### 📝 Registro de Novedades y Acciones Correctivas"
                 )
@@ -434,14 +434,14 @@ if url_input:
 
                 # Exportar PDF
                 col_exp1.download_button(
-                    label="📄 Descargar Informe PDF Normativo",
+                    label="📄 Descargar Informe PDF",
                     data=pdf_buffer,
                     file_name=f"Reporte_Cadena_Frio_{sede_seleccionada}_{opcion_filtro}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
 
-                # Mejora 3: Exportar datos a Excel (.csv)
+                # Exportar datos a Excel (.csv)
                 csv_data = df[[col_fecha, col_temp]].to_csv(index=False)
                 col_exp2.download_button(
                     label="📊 Descargar Datos Filtrados (CSV/Excel)",
